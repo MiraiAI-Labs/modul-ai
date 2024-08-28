@@ -104,10 +104,10 @@ class GeminiCVAnalyst:
         response_text = response.text
         return response_text
     
-    def run_cv_analyst(self, text, mode="text", MAXIMUM_TRY=10):
+    def run_cv_analyst(self, text, json_data, MAXIMUM_TRY=10):
         for _ in range(MAXIMUM_TRY):
             try:
-                summary = self.process_text(text, mode)
+                summary = self.process_text(text, json_data)
                 return summary
             except Exception as e:
                 print(f"error: {e}")
