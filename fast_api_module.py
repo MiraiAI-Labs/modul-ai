@@ -7,6 +7,7 @@ from pyngrok import ngrok
 import uvicorn
 import os
 from analyst import Analyzer
+from cv_analyst import GeminiCVAnalyst
 from jobspy import scrape_jobs
 import csv
 
@@ -51,7 +52,20 @@ async def analyze(submission: TextSubmission):
       "tech_stacks_overtime": analyst.tech_stacks_overtime()
     }
 
+    json_res_name = 'job_analysis.json'
+
+    with open(json_res_name, 'w') as json_file:
+        json.dump(analysis_res, json_file, indent=4)
+
     return analysis_res
+
+@app.post("/cv_analysis")
+async def cv_analysis(file: UploadFile = File(...)):
+    cv_analyst = GeminiCVAnalyst()
+    json_data = json.load("./jobs_analysis.json")
+    input_text = await file.read()
+    result = cv_analyst.run_cv_analyst(input_text, json_data)
+    return result
 
 ngrok.set_auth_token("NGROK_AUTH_TOKEN")
 
