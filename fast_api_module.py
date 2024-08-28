@@ -10,6 +10,13 @@ from analyst import Analyzer
 from cv_analyst import GeminiCVAnalyst
 from jobspy import scrape_jobs
 import csv
+import json
+import numpy as np
+
+def convert_int64(o):
+    if isinstance(o, np.int64):
+        return int(o)
+    raise TypeError
 
 app = FastAPI()
 app.add_middleware(
@@ -55,7 +62,7 @@ async def analyze(submission: TextSubmission):
     json_res_name = 'job_analysis.json'
 
     with open(json_res_name, 'w') as json_file:
-        json.dump(analysis_res, json_file, indent=4)
+        json.dump(analysis_res, json_file, indent=4, default=convert_int64)
 
     return analysis_res
 
