@@ -1,0 +1,15 @@
+fastapi==0.112.2
+jobspy==0.29.0
+matplotlib==3.9.2
+nltk==3.8.1
+numpy==2.1.0
+pandas==2.2.2
+protobuf==5.28.0
+pydantic==2.8.2
+PyPDF2==3.0.1
+PyYAML==6.0.2
+PyYAML==6.0.2
+scikit_learn==1.5.1
+uvicorn==0.30.6
+wordcloud==1.9.3
+
