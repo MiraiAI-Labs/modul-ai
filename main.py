@@ -6,7 +6,7 @@ import numpy as np
 import uvicorn
 from analyst import Analyzer
 from cv_analyst import GeminiCVAnalyst
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, UploadFile, BackgroundTasks, Form
 from fastapi.middleware.cors import CORSMiddleware
 from jobspy import scrape_jobs
 from pydantic import BaseModel
@@ -17,6 +17,7 @@ import os
 import requests
 import hmac
 import hashlib
+from typing import Annotated
 
 def convert_int64(o):
     if isinstance(o, np.int64):
@@ -69,11 +70,11 @@ app.mount(
 
 class TextSubmission(BaseModel):
     text: str
+    jobs_analysis_id: int
+    job_lists_id: int
     mode: str = "default"
 
-
-@app.post("/generate_analysis")
-async def analyze(submission: TextSubmission):
+def analyze_task(submission: TextSubmission):
     print(f"Received submission: {submission.text}")
     jobs = scrape_jobs(
         site_name=["indeed", "linkedin", "zip_recruiter"],
@@ -119,30 +120,35 @@ async def analyze(submission: TextSubmission):
     response = {
         "jobs_file": jobs_file_name,
         "analysis_file": json_res_name,
-        "position": submission.text,
+        "jobs_analysis_id": submission.jobs_analysis_id,
+        "job_lists_id": submission.job_lists_id,
     }
     
     send_webhook("analysis_generated", response)
 
-    return response
+@app.post("/generate_analysis")
+async def analyze(submission: TextSubmission, background_tasks: BackgroundTasks):
+    background_tasks.add_task(analyze_task, submission)
+    return {"message": "Analysis started"}
 
+def analyze_cv_task(input_text, json_data, review_id: str):
+    cv_analyst = GeminiCVAnalyst()
+    result = cv_analyst.run_cv_analyst(input_text, json_data)
 
-# @app.post("/cv_analysis")
-# async def cv_analysis(file: UploadFile = File(...)):
-#     cv_analyst = GeminiCVAnalyst()
-#     with open("./job_analysis.json", "r") as f:
-#         json_data = json.load(f)
-#     input_text = await file.read()
-#     result = cv_analyst.run_cv_analyst(input_text, json_data)
-#     return result
+    response = {
+        "result": result,
+        "review_id": review_id,
+    }
+    
+    send_webhook("cv_analyzed", response)
 
 @app.post("/analyze_cv")
-async def analyze_cv(file: UploadFile = File(...), job_analysis: UploadFile = File(...)):
-    cv_analyst = GeminiCVAnalyst()
+async def analyze_cv(background_tasks: BackgroundTasks, file: UploadFile, job_analysis: UploadFile, review_id: Annotated[str, Form()]):
+    print(f"Received CV file: {file.filename} and job analysis file: {job_analysis.filename} with review_id: {review_id}")
     input_text = await file.read()
     json_data = json.load(job_analysis.file)
-    result = cv_analyst.run_cv_analyst(input_text, json_data)
-    return result
+    background_tasks.add_task(analyze_cv_task, input_text, json_data, review_id)
+    return {"message": "CV analysis started"}
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8001, log_level="info")
