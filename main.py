@@ -139,9 +139,8 @@ async def analyze(submission: TextSubmission):
 @app.post("/analyze_cv")
 async def analyze_cv(file: UploadFile = File(...), job_analysis: UploadFile = File(...)):
     cv_analyst = GeminiCVAnalyst()
-    json_txt = await job_analyst_file.read()
     input_text = await file.read()
-    json_data = json.load(json_txt)
+    json_data = json.load(job_analysis.file)
     result = cv_analyst.run_cv_analyst(input_text, json_data)
     return result
 
