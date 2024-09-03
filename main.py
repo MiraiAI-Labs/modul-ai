@@ -1,5 +1,6 @@
 import csv
 import json
+from pathlib import Path
 
 import numpy as np
 import uvicorn
@@ -9,13 +10,44 @@ from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from jobspy import scrape_jobs
 from pydantic import BaseModel
-
+import uuid
+from fastapi.staticfiles import StaticFiles
+from dotenv import load_dotenv
+import os
+import requests
+import hmac
+import hashlib
 
 def convert_int64(o):
     if isinstance(o, np.int64):
         return int(o)
     raise TypeError
 
+load_dotenv()
+
+def send_webhook(event, data):
+    secret = os.getenv("WEBHOOK_SECRET", "very-long-secret")
+    url = os.getenv("WEBHOOK_URL", "http://localhost:8002/webhook")
+
+    payload = {
+        "event": event,
+        "data": data
+    }
+
+    payload_string = json.dumps(payload)
+    payload_bytes = json.dumps(payload).encode("utf-8")
+    
+    secret_bytes = bytes(secret, "utf-8")
+    signature = hmac.new( secret_bytes, payload_bytes, hashlib.sha256 )
+
+    headers = {
+        "Content-Type": "application/json",
+        "Signature": signature.hexdigest(),
+    }
+
+    print(f"Sending webhook to {url} with payload {payload_string} and headers {headers}")
+
+    response = requests.post(url, data=payload_string, headers=headers)
 
 app = FastAPI()
 app.add_middleware(
@@ -26,14 +58,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+public_dir = Path(__file__).parent / "public"
+
+if not public_dir.exists():
+    raise RuntimeError(f"Directory '{public_dir}' does not exist")
+
+app.mount(
+    "/public", StaticFiles(directory=public_dir), name="public"
+)
 
 class TextSubmission(BaseModel):
     text: str
     mode: str = "default"
 
 
-@app.post("/analyze")
+@app.post("/generate_analysis")
 async def analyze(submission: TextSubmission):
+    print(f"Received submission: {submission.text}")
     jobs = scrape_jobs(
         site_name=["indeed", "linkedin", "zip_recruiter"],
         search_term=submission.text,  # Mengakses `text` dari objek submission
@@ -44,9 +85,15 @@ async def analyze(submission: TextSubmission):
     )
 
     print(f"Found {len(jobs)} jobs")
-    jobs.to_csv("jobs.csv", quoting=csv.QUOTE_NONNUMERIC, escapechar="\\", index=False)
 
-    analyst = Analyzer(csv_dir="./jobs.csv")
+    jobs_file_name = "public/" + str(uuid.uuid4()) + ".csv"
+    jobs.to_csv(jobs_file_name, quoting=csv.QUOTE_NONNUMERIC, escapechar="\\", index=False)
+
+    print(f"Saved jobs to {jobs_file_name}")
+
+    analyst = Analyzer(csv_dir="./" + jobs_file_name)
+
+    print("Analysing data...")
 
     analysis_res = {
         "top_job_titles": analyst.top_job_titles(),
@@ -60,23 +107,43 @@ async def analyze(submission: TextSubmission):
         "tech_stacks_overtime": analyst.tech_stacks_overtime(),
     }
 
-    json_res_name = "job_analysis.json"
+    print("Analysis done")
+
+    json_res_name = "public/" + str(uuid.uuid4()) + ".json"
 
     with open(json_res_name, "w") as json_file:
         json.dump(analysis_res, json_file, indent=4, default=convert_int64)
 
-    return analysis_res
+    print(f"Saved analysis to {json_res_name}")
+
+    response = {
+        "jobs_file": jobs_file_name,
+        "analysis_file": json_res_name,
+        "position": submission.text,
+    }
+    
+    send_webhook("analysis_generated", response)
+
+    return response
 
 
-@app.post("/cv_analysis")
-async def cv_analysis(file: UploadFile = File(...)):
+# @app.post("/cv_analysis")
+# async def cv_analysis(file: UploadFile = File(...)):
+#     cv_analyst = GeminiCVAnalyst()
+#     with open("./job_analysis.json", "r") as f:
+#         json_data = json.load(f)
+#     input_text = await file.read()
+#     result = cv_analyst.run_cv_analyst(input_text, json_data)
+#     return result
+
+@app.post("/analyze_cv")
+async def analyze_cv(file: UploadFile = File(...), job_analysis: UploadFile = File(...)):
     cv_analyst = GeminiCVAnalyst()
-    with open("./job_analysis.json", "r") as f:
-        json_data = json.load(f)
+    json_txt = await job_analyst_file.read()
     input_text = await file.read()
+    json_data = json.load(json_txt)
     result = cv_analyst.run_cv_analyst(input_text, json_data)
     return result
 
-
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
+    uvicorn.run(app, host="0.0.0.0", port=8001, log_level="info")
