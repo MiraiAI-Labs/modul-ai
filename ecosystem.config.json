@@ -1,0 +1,12 @@
+{
+    "apps": [{
+        "name": "modul-ai",
+        "script": "main.py",
+        "args": ["-c", ""],
+        "instances": "1",
+        "wait_ready": true,
+        "autorestart": false,
+        "max_restarts": 5,
+        "interpreter" : ".venv/bin/python",
+    }]
+}
