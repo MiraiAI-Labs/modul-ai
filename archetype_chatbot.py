@@ -1,9 +1,13 @@
 import os
 import google.generativeai as genai
 import json
+import yaml
+
+with open("./config.yaml", "r") as file:
+    config = yaml.safe_load(file)
 
 class ArchetypeChatbot:
-    def __init__(self, configs):
+    def __init__(self, configs=config):
         self.api_key = configs["GEMINI_API_KEY_COLLECTION"]
         self.gen_config = {
             "temperature": 1,
