@@ -151,9 +151,26 @@ async def analyze_cv(background_tasks: BackgroundTasks, file: UploadFile, job_an
     background_tasks.add_task(analyze_cv_task, input_text, json_data, review_id)
     return {"message": "CV analysis started"}
 
+#################################### Bagian ini baru ####################################################
+
+def archetype_quiz_judge_task(text, review_id: str): # Sementara aku set review_id dulu ngikutin atas
+    judge = ArchetypeChatbot()
+    res = judge.process_text(text)
+    
+    resp = {
+        "result": res,
+        "review_id": review_id
+    }
+
+    send_webhook("archetype_quiz_result", resp)
+
 @app.post("/archetype_quiz_judge")
-async def archetype_quiz_judge():
-    pass
+async def analyze_cv(background_tasks: BackgroundTasks, input_text : TextSubmission, review_id: Annotated[str, Form()]):
+    # print(f"Received CV file: {file.filename} with review_id: {review_id}")
+    background_tasks.add_task(archetype_quiz_judge_task, input_text, review_id)
+    return {"message": "Archetype Evaluation started"}
+
+#############################################################################################################
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8001, log_level="info")
