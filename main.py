@@ -6,6 +6,7 @@ import numpy as np
 import uvicorn
 from analyst import Analyzer
 from cv_analyst import GeminiCVAnalyst
+from archetype_chatbot import ArchetypeChatbot
 from fastapi import FastAPI, File, UploadFile, BackgroundTasks, Form
 from fastapi.middleware.cors import CORSMiddleware
 from jobspy import scrape_jobs
@@ -149,6 +150,10 @@ async def analyze_cv(background_tasks: BackgroundTasks, file: UploadFile, job_an
     json_data = json.load(job_analysis.file)
     background_tasks.add_task(analyze_cv_task, input_text, json_data, review_id)
     return {"message": "CV analysis started"}
+
+@app.post("/archetype_quiz_judge")
+async def archetype_quiz_judge():
+    pass
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8001, log_level="info")
