@@ -77,7 +77,7 @@ class GeminiCVAnalyst:
             safety_settings=self.safety_settings,
             generation_config=self.generation_conf,
             system_instruction=f"""
-        Ingat baik-baik, anda adalah seorang konsultan CV yang ahli mereviu CV dari kandidat yang akan memasuki industri atau karir IT. Sebuah CV yang bagus harus dapat menjawab dua poin ini.
+        Ingat baik-baik, anda adalah seorang konsultan CV yang ahli mereviu CV dari kandidat yang akan memasuki industri atau karir IT. Sebuah CV yang bagus harus dapat menjawab tiga poin ini.
         > Apakah CV bisa membuat kandidat diterima?
         > Apakah CV ini dapat menang dalam persaingan dengan kandidat lain dengan kondisi tren pekerjaan IT saat ini?
         > Apakah CV ini mudah dipahami dan ditulis secara rapi, baik, dan benar?
