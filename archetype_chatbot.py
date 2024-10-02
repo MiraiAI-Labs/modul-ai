@@ -33,25 +33,41 @@ class ArchetypeChatbot:
     def process_text(self, input_text):
         api_key = self.pick_random_key()
         genai.configure(api_key=api_key)
+
         model = genai.GenerativeModel(
             model_name="gemini-1.5-pro",
             generation_config=self.gen_config,
-            system_instruction='Cek apakah untuk data ini, jawaban user sudah sesuai dengan kunci jawaban di setiap soalnya. Beri juga persentase kemiripan atau keterkaitan (nilai anda) jawaban user terhadap kunci jawabannya. Apabila persentase di bawah 70% DAN jawabannya tidak sesuai menurut Anda (dengan logis tentu saja), beri penjelasan atau jawaban yang seharusnya. Respon anda harus dalam bentuk JSON, dengan bentuk:\n\n{"Soal": ...,\n "Nilai": ..., # Skalanya dari 0-100\n "Komentar":...\n}\n\nJika ada lebih dari satu soal, maka seperti biasa,\n\n{{"id": ...,\n "nilai": ..., # Skalanya dari 0-100\n "komentar":...\n},\n{"id": ...,\n "nilai": ..., # Skalanya dari 0-100\n "komentar":...\n},\n...\n}\n\nGunakan bahasa yang dapat meng-encourage user, terkadang beri semangat kepada user agar tetap bersemangat dalam meningkatkan kemampuan dirinya. Anda tidak diperbolehkan menjawab hal diluar konteks ini, pastikan supaya jawaban anda hanya dalam bentuk JSON.',
+            system_instruction=(
+                "Cek apakah untuk data ini, jawaban user sudah sesuai dengan kunci jawaban di setiap soalnya. "
+                "Beri juga persentase kemiripan atau keterkaitan (nilai anda) jawaban user terhadap kunci jawabannya. "
+                "Apabila persentase di bawah 70% DAN jawabannya tidak sesuai menurut Anda (dengan logis tentu saja), "
+                "beri penjelasan atau jawaban yang seharusnya. Respon anda harus dalam bentuk JSON array:\n\n"
+                '[{"id": ..., "Soal": ..., "Nilai": ..., "Komentar":...},\n'
+                '{"id": ..., "Soal": ..., "Nilai": ..., "Komentar":...}, ...]'
+                "\n\nGunakan bahasa yang dapat meng-encourage user, terkadang beri semangat kepada user agar tetap bersemangat dalam "
+                "meningkatkan kemampuan dirinya. Anda tidak diperbolehkan menjawab hal diluar konteks ini, pastikan supaya jawaban "
+                "anda hanya dalam bentuk JSON array."
+            ),
         )
 
         chat_session = model.start_chat(history=[])
+
         response = chat_session.send_message(input_text)
 
-        print(f"Raw response from AI: {response.text}")
+        # print(f"Raw response from AI: {response.text}")
 
         response_text = response.text.replace("```json", "").replace("```", "").strip()
 
         print(f"Cleaned response: {response_text}")
 
         try:
-            response_text = json.loads(response_text)
+            response_json = json.loads(response_text)
         except json.JSONDecodeError as e:
             print(f"Error decoding JSON: {e}")
-            raise
+            raise ValueError("Failed to parse JSON response")
 
-        return response_text
+        if isinstance(response_json, list):
+            return response_json
+        else:
+            print(f"Unexpected response format: {response_json}")
+            raise ValueError("Response format is not as expected.")

@@ -185,42 +185,31 @@ chatbot = ArchetypeChatbot()
 
 @app.post("/upskill-judge", response_model=List[QuizResult])
 async def upskill_judge(quiz_items: List[QuizItem]):
+    all_questions = [
+        {
+            "question": item.question,
+            "correct_answer": item.answer,
+            "user_answer": item.userAnswer,
+        }
+        for item in quiz_items
+    ]
+
+    input_text = json.dumps({"questions": all_questions})
+
+    processed_results = chatbot.process_text(input_text)
+
     results = []
-    for item in quiz_items:
-        input_text = json.dumps(
-            {
-                "question": item.question,
-                "correct_answer": item.answer,
-                "user_answer": item.userAnswer,
-            }
-        )
-
-        processed_result = chatbot.process_text(input_text)
-
-        feedback = processed_result.get("Komentar", "Tidak ada feedback.")
-        nilai = processed_result.get("Nilai", 0)
-
-        results.append(QuizResult(feedback=feedback, nilai=nilai))
+    if isinstance(processed_results, list):
+        for result in processed_results:
+            feedback = result.get("Komentar", "Tidak ada feedback.")
+            nilai = result.get("Nilai", 0)
+            results.append(QuizResult(feedback=feedback, nilai=nilai))
+    else:
+        print(f"Unexpected response format: {processed_results}")
+        raise ValueError("Response format is not as expected.")
 
     return results
 
-
-# def archetype_quiz_judge_task(
-#     text, review_id: str
-# ):  # Sementara aku set review_id dulu ngikutin atas
-#     judge = ArchetypeChatbot()
-#     res = judge.process_text(text)
-
-#     resp = {"result": res, "review_id": review_id}
-
-#     send_webhook("archetype_quiz_result", resp)
-
-
-# @app.post("/archetype_quiz_judge")
-# async def analyze_cv(background_tasks: BackgroundTasks, input_text : TextSubmission, review_id: Annotated[str, Form()]):
-#     # print(f"Received CV file: {file.filename} with review_id: {review_id}")
-#     background_tasks.add_task(archetype_quiz_judge_task, input_text, review_id)
-#     return {"message": "Archetype Evaluation started"}
 
 #############################################################################################################
 
