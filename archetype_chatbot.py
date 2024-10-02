@@ -1,4 +1,5 @@
 import json
+import re
 
 import google.generativeai as genai
 import yaml
@@ -54,14 +55,16 @@ class ArchetypeChatbot:
 
         response = chat_session.send_message(input_text)
 
-        # print(f"Raw response from AI: {response.text}")
+        cleaned_response = (
+            response.text.replace("```json", "").replace("```", "").strip()
+        )
 
-        response_text = response.text.replace("```json", "").replace("```", "").strip()
+        cleaned_response = re.sub(r'(?<!\\)"', r"\"", cleaned_response)
 
-        print(f"Cleaned response: {response_text}")
+        print(f"Cleaned response: {cleaned_response}")
 
         try:
-            response_json = json.loads(response_text)
+            response_json = json.loads(cleaned_response)
         except json.JSONDecodeError as e:
             print(f"Error decoding JSON: {e}")
             raise ValueError("Failed to parse JSON response")
