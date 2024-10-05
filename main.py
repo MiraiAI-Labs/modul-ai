@@ -11,7 +11,7 @@ import numpy as np
 import requests
 import uvicorn
 from dotenv import load_dotenv
-from fastapi import BackgroundTasks, FastAPI, Form, UploadFile
+from fastapi import BackgroundTasks, FastAPI, Form, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from jobspy import scrape_jobs
@@ -210,8 +210,50 @@ async def upskill_judge(quiz_items: List[QuizItem]):
 
     return results
 
+import webrtcvad
+import soundfile as sf
+import io
+from fastapi.responses import JSONResponse
+
+NOISE_THRESHOLD = 0.02
+VAD_AGGRESSIVENESS = 2
+vad = webrtcvad.Vad(VAD_AGGRESSIVENESS)
+
+def is_noisy(audio_data, threshold):
+    rms = np.sqrt(np.mean(np.square(audio_data)))
+    return 1 if rms > threshold else 0
+
+def is_speech(audio_data, sample_rate):
+    audio_bytes = (audio_data * 32768).astype(np.int16).tobytes()
+    frame_duration = 30
+    frame_size = int(sample_rate * frame_duration / 1000)
+    
+    for i in range(0, len(audio_bytes), frame_size * 2):
+        frame = audio_bytes[i:i + frame_size * 2]
+        if len(frame) == frame_size * 2 and vad.is_speech(frame, sample_rate):
+            return True
+    return False
+
+@app.post("/submit_audio")
+async def submit_audio(file: UploadFile = File(...)):
+    if file.content_type in ["audio/wav", "audio/mp3"]:
+        try:
+            contents = await file.read()
+            audio_io = io.BytesIO(contents)
+            audio_data, sr = sf.read(audio_io)
+
+            if is_speech(audio_data, sr):
+                return JSONResponse(status_code=200, content={"message": "Pembicaraan terdeteksi, bukan noise"})
+            
+            noise_status = is_noisy(audio_data, NOISE_THRESHOLD)
+            return JSONResponse(status_code=200, content={"message": "Pindah ke tempat yang lebih tenang" if noise_status else "Tempat sudah kondusif!"})
+        except Exception as e:
+            return JSONResponse(status_code=500, content={"message": f"Terjadi kesalahan saat memproses file audio. Error:\n{str(e)}"})
+    
+    else:
+        return JSONResponse(status_code=400, content={"message": "Format file tidak didukung"})
 
 #############################################################################################################
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8001, log_level="info")
+    uvicorn.run(app, host="127.0.0.1", port=8001, log_level="info")
