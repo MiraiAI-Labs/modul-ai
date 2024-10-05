@@ -1,23 +1,25 @@
 import csv
+import hashlib
+import hmac
 import json
+import os
+import uuid
 from pathlib import Path
+from typing import Annotated, List
 
 import numpy as np
+import requests
 import uvicorn
-from analyst import Analyzer
-from cv_analyst import GeminiCVAnalyst
-from fastapi import FastAPI, File, UploadFile, BackgroundTasks, Form
+from dotenv import load_dotenv
+from fastapi import BackgroundTasks, FastAPI, Form, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from jobspy import scrape_jobs
 from pydantic import BaseModel
-import uuid
-from fastapi.staticfiles import StaticFiles
-from dotenv import load_dotenv
-import os
-import requests
-import hmac
-import hashlib
-from typing import Annotated
+
+from analyst import Analyzer
+from archetype_chatbot import ArchetypeChatbot
+from cv_analyst import GeminiCVAnalyst
 
 def convert_int64(o):
     if isinstance(o, np.int64):
